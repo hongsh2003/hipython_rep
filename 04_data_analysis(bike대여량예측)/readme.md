@@ -1,44 +1,70 @@
+# 🚲 자전거 대여 수요 예측 프로젝트
+
+## 📌 프로젝트 개요
+
+도심 내 자전거 대여 서비스는 친환경 교통 수단으로 각광받고 있으며, 정확한 수요 예측은 효율적인 자전거 배치 및 운영에 매우 중요합니다. 본 프로젝트는 기상, 시간, 계절 등의 다양한 요인을 바탕으로 자전거 대여 수요를 예측하기 위한 머신러닝 회귀 모델을 구축하고, 모델 간 성능을 비교 분석합니다.
 
 ---
 
-## 📊 사용 데이터
+## 📂 데이터 소개
 
-- **컬럼 예시**:
-  - `hour`, `temperature`, `humidity`, `windspeed`
-  - `season`, `holiday`, `workingday`, `weather` 등
-  - `count`: 대여량 (예측 대상)
-
----
-
-## 🧪 사용한 모델
-
-| 모델                | 특징                           |
-|---------------------|--------------------------------|
-| Linear Regression   | 기본 선형 회귀                 |
-| Ridge               | L2 정규화                      |
-| Lasso               | L1 정규화 및 변수 선택         |
-| ElasticNet          | L1 + L2 혼합                   |
-| Random Forest       | 트리 기반 앙상블 모델          |
-| Polynomial Regression | 비선형 모델 확장 (다항회귀) |
+- **데이터 구성**:
+  - `datetime`: 날짜 및 시간 정보
+  - `season`: 계절 (1: 봄, 2: 여름, 3: 가을, 4: 겨울)
+  - `holiday`: 공휴일 여부
+  - `workingday`: 근무일 여부
+  - `weather`: 날씨 상태 (1~4)
+  - `temp`: 기온 (섭씨)
+  - `atemp`: 체감온도
+  - `humidity`: 습도 (%)
+  - `windspeed`: 풍속
+  - `casual`: 비등록 사용자 대여 수
+  - `registered`: 등록 사용자 대여 수
+  - `count`: 총 대여 수 (예측 대상)
 
 ---
 
-## 🧼 전처리 및 특징
+## 🧹 데이터 전처리
 
-- **결측치 처리**: 평균값 대체 (`bmi` 등)
-- **스케일링**: `StandardScaler` 사용
-- **문자형 변수 인코딩**: `LabelEncoder`, `get_dummies` 등
-- **교차 검증**: `RidgeCV`, `LassoCV`, `ElasticNetCV`, `cross_val_score` 사용
+- 결측값 확인 및 제거
+- `datetime` 컬럼을 `year`, `month`, `hour`, `dayofweek` 등으로 분해
+- 불필요한 변수 제거 (`casual`, `registered`는 `count`와 직접적으로 연결되어 있으므로 삭제)
+- 스케일링 적용 (StandardScaler)  
+- 범주형 변수 변환 (One-Hot Encoding)
+
+---
+
+## 🧠 사용한 모델
+
+다양한 회귀 모델을 적용하고 성능을 비교하였습니다:
+
+| 모델명 | 설명 |
+|--------|------|
+| `LinearRegression` | 선형 회귀 모델 |
+| `Ridge`, `Lasso`, `ElasticNet` | 규제 기반 선형 회귀 |
+| `RandomForestRegressor` | 앙상블 기반 결정 트리 회귀 |
+| `XGBoostRegressor` | 그레이디언트 부스팅 기반 강력한 회귀 모델 |
+| `Polynomial Regression` | 다항 특성을 포함한 비선형 모델 |
 
 ---
 
 ## 📈 성능 평가 지표
 
-- **RMSE (Root Mean Squared Error)**
-- **R² (결정계수)**
+모든 모델에 대해 다음의 지표로 성능을 평가하였습니다:
 
-```python
-from sklearn.metrics import mean_squared_error, r2_score
+- **MSE (Mean Squared Error)**
+- **R² (결정 계수)**
 
-rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-r2 = r2_score(y_test, y_pred)
+---
+
+## 📊 주요 결과 (예시)
+
+| 모델 | RMSE | R² |
+|------|------|-----|
+| Ridge | 13053.8684 | 0.1181 |
+| Lasso | **13046.6092** | **0.1186** |
+| ElasticNet | 13046.9036 | 0.1185 |
+| PolynomialRegression | 14598.0492 | 0.01374 |
+
+> 📌 **Lasso** 가 가장 낮은 RMSE와 높은 R² 점수를 기록하며 우수한 성능을 보였습니다. 
+
