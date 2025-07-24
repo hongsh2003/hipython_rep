@@ -10,7 +10,6 @@
 - Python (pandas, numpy, matplotlib, seaborn)
 - Scikit-learn (Linear Models, Preprocessing, Metrics)
 - XGBoost
-- Jupyter Notebook
 
 ---
 
