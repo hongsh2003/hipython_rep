@@ -174,3 +174,22 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+NEW.ipynb
+output_file.zip
+.vscode/settings.json
+data/desktop.ini
+lg7pilot/pyvenv.cfg
+lg7pilot/Include/site/python3.12/greenlet/greenlet.h
+lg7pilot/Scripts/activate
+lg7pilot/Scripts/activate.bat
+lg7pilot/Scripts/Activate.ps1
+lg7pilot/Scripts/deactivate.bat
+lg7pilot/Scripts/f2py.exe
+lg7pilot/Scripts/normalizer.exe
+lg7pilot/Scripts/numpy-config.exe
+lg7pilot/Scripts/pip.exe
+lg7pilot/Scripts/pip3.12.exe
+lg7pilot/Scripts/pip3.exe
+lg7pilot/Scripts/playwright.exe
+lg7pilot/Scripts/python.exe
+lg7pilot/Scripts/pythonw.exe
