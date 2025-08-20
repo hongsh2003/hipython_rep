@@ -193,3 +193,6 @@ lg7pilot/Scripts/pip3.exe
 lg7pilot/Scripts/playwright.exe
 lg7pilot/Scripts/python.exe
 lg7pilot/Scripts/pythonw.exe
+data/images/image1.png
+.gitignore
+data/images/image2.png
