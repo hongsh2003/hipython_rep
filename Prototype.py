@@ -1,7 +1,8 @@
 import os
 import streamlit as st
 from PIL import Image
-import pydeck as pdk  
+import folium
+from streamlit.components.v1 import html
 
 st.title('방구 - 맞춤 방 구하기 서비스')
 
@@ -11,66 +12,55 @@ if "menu" not in st.session_state:
 if "section" not in st.session_state:
     st.session_state.section = "기본 정보"
 
+# selectbox/radio 변경 시 세션에 반영
 def _sync_menu():
     st.session_state.menu = st.session_state.menu_select
 
 def _sync_section():
     st.session_state.section = st.session_state.section_radio
 
-# ------- 지도 함수 -------
-def show_radii_map(lat, lon, selected_km=None, custom_m=None):
-    """중심 좌표 기준으로 1/3/5km 또는 커스텀(m) 원을 pydeck으로 표시"""
-    base = [
-        {"lat": lat, "lon": lon, "radius": 1000, "label": "1 km"},
-        {"lat": lat, "lon": lon, "radius": 3000, "label": "3 km"},
-        {"lat": lat, "lon": lon, "radius": 5000, "label": "5 km"},
+# ------- 지도 원 표시 함수 -------
+def draw_radius_circles(m, lat, lon, selected_km=None, custom_m=None):
+    """
+    folium 지도 m 위에 1/3/5km 기본 원(선택 강조)과 커스텀(m) 원을 그린다.
+    """
+    # 기본 반경 원
+    options = [
+        (1000,  "1 km"),
+        (3000,  "3 km"),
+        (5000,  "5 km"),
     ]
-    circles = list(base)
+    highlight_radius = int(selected_km * 1000) if selected_km else None
 
-    highlight = None
+    for r_m, label in options:
+        folium.Circle(
+            location=(lat, lon),
+            radius=r_m,
+            color="#007aff" if (highlight_radius == r_m) else "#5a8dee",
+            weight=3 if (highlight_radius == r_m) else 1,
+            fill=True,
+            fill_opacity=0.12,
+            tooltip=f"{label} 반경"
+        ).add_to(m)
+
+    # 커스텀 원
     if custom_m:
-        circles.append({
-            "lat": lat, "lon": lon, "radius": int(custom_m),
-            "label": f"{custom_m/1000.0:.1f} km (custom)"
-        })
-        highlight = int(custom_m)
-    elif selected_km:
-        highlight = int(selected_km * 1000)
+        folium.Circle(
+            location=(lat, lon),
+            radius=int(custom_m),
+            color="#e74c3c",
+            weight=4,
+            fill=True,
+            fill_opacity=0.10,
+            tooltip=f"커스텀 반경: {int(custom_m)} m ({custom_m/1000:.2f} km)"
+        ).add_to(m)
 
-    for c in circles:
-        c["is_selected"] = (highlight is not None and c["radius"] == highlight)
-
-    layer_circles = pdk.Layer(
-        "ScatterplotLayer",
-        circles,
-        get_position='[lon, lat]',
-        get_radius="radius",
-        filled=True,
-        opacity=0.15,
-        stroked=True,
-        get_fill_color='[0, 122, 255, 90]',
-        # 선택된 원은 라인 색 더 진하게
-        get_line_color='[is_selected ? 0 : 0, is_selected ? 0 : 122, is_selected ? 0 : 255, is_selected ? 230 : 150]',
-        line_width_min_pixels=2,
-        pickable=True,  
-    )
-
-    layer_center = pdk.Layer(
-        "ScatterplotLayer",
-        [{"lat": lat, "lon": lon, "radius": 60, "label": "중심"}],
-        get_position='[lon, lat]',
-        get_radius="radius",
-        filled=True,
-        get_fill_color='[220, 20, 60, 220]',
-        stroked=False,
-    )
-
-    view_state = pdk.ViewState(latitude=lat, longitude=lon, zoom=12)
-    st.pydeck_chart(pdk.Deck(
-        layers=[layer_circles, layer_center],
-        initial_view_state=view_state,
-        tooltip={"text": "{label}"},
-    ))
+    # 중심 마커
+    folium.Marker(
+        location=(lat, lon),
+        tooltip="중심 위치",
+        popup=f"위도 {lat:.6f}, 경도 {lon:.6f}"
+    ).add_to(m)
 
 # ---------------- 사이드바: 메뉴/섹션 선택 + 완료 ----------------
 st.sidebar.header('메뉴')
@@ -138,6 +128,7 @@ if st.session_state.menu == '방구 소개':
     st.write('방구에 대한 소개 - 방구는 무엇인가? 우리의 강점')
 
 elif st.session_state.menu == '방 찾기':
+    # 사이드바: 섹션 선택 & 완료 버튼
     sidebar_nav()
 
     # --- 메인: 섹션별 UI ---
@@ -149,41 +140,48 @@ elif st.session_state.menu == '방 찾기':
             work_input = st.text_input('회사 주소를 입력해주세요', key="work_input_main")
             st.caption(f'입력하신 회사 주소: {work_input or "-"}')
 
-            st.markdown("##### 지도와 반경")
+            st.markdown("##### 지도와 반경 (좌표 입력 후 '검색')")
+            # 좌표 + 반경 입력 UI
+            c1, c2 = st.columns(2)
+            with c1:
+                lat_str = st.text_input("위도", placeholder="37.5665", key="lat_input")
+            with c2:
+                lon_str = st.text_input("경도", placeholder="126.9780", key="lon_input")
 
-            col_lat, col_lon = st.columns(2)
-            with col_lat:
-                lat_str = st.text_input("위도(lat) 입력 (예: 37.5665)", key="lat_input", placeholder="37.5665")
-            with col_lon:
-                lon_str = st.text_input("경도(lon) 입력 (예: 126.9780)", key="lon_input", placeholder="126.9780")
+            c3, c4 = st.columns(2)
+            with c3:
+                radius_label = st.radio("반경 선택", ["1 km", "3 km", "5 km"], index=0, horizontal=True)
+                selected_km = int(radius_label.split()[0])
+            with c4:
+                custom_on = st.checkbox("커스텀 반경(m)")
+            custom_m = st.slider("커스텀 반경(미터)", 200, 10000, 2000, 100) if custom_on else None
 
-            lat = lon = None
-            if lat_str and lon_str:
+            # 검색 버튼
+            if st.button("검색"):
+                lat = lon = None
+                error = None
                 try:
                     lat = float(lat_str)
                     lon = float(lon_str)
-                except ValueError:
-                    st.error("위도/경도는 숫자로 입력해 주세요. 예: 37.5665 / 126.9780")
+                    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+                        error = "위도/경도 범위를 확인해주세요. (위도 -90~90, 경도 -180~180)"
+                except Exception:
+                    error = "위도/경도를 숫자로 입력해주세요. 예: 37.5665 / 126.9780"
 
-            # 반경 선택 
-            colA, colB = st.columns(2)
-            with colA:
-                # 라벨은 "1 km" 형태로 표시, 내부 값은 숫자 km로 사용
-                radius_label = st.radio("반경 선택", ["1 km", "3 km", "5 km"], index=0, horizontal=True)
-                radius_km = int(radius_label.split()[0])
-            with colB:
-                custom_on = st.checkbox("커스텀 반경(m)", value=False)
-            custom_m = st.slider("커스텀 반경(미터)", 200, 10000, 2000, 100) if custom_on else None
-
-            if custom_on:
-                st.caption(f"커스텀 반경: {custom_m} m ({custom_m/1000:.2f} km)")
-
-
-            # 위도/경도가 유효할 때만 지도 표시
-            if (lat is not None) and (lon is not None):
-                show_radii_map(lat, lon, selected_km=None if custom_on else radius_km, custom_m=custom_m)
-            else:
-                st.info("위도와 경도를 입력하면 지도에 반영됩니다.")
+                if error:
+                    st.error(error)
+                else:
+                    # folium 지도 생성 및 원 그리기
+                    m = folium.Map(location=[lat, lon], zoom_start=13, tiles="CartoDB positron")
+                    draw_radius_circles(
+                        m,
+                        lat,
+                        lon,
+                        selected_km=None if custom_on else selected_km,
+                        custom_m=custom_m
+                    )
+                    # streamlit-folium 없이 HTML로 임베드
+                    html(m.get_root().render(), height=520)
 
         check_town = st.checkbox('원하는 동네가 있어요', key="check_town_main")
         if check_town:
@@ -241,7 +239,7 @@ elif st.session_state.menu == '방 찾기':
         )
         st.caption(f'선택한 상세필터: {", ".join(filters) if filters else "-"}')
 
-else:  # '매물'
+else:  
     st.subheader('매물')
     st.write('선택하신 필터에 따른 매물 리스트입니다!')
     result()
