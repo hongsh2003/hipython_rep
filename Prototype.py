@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 from PIL import Image
-import pydeck as pdk  # 지도/원 표시 (Streamlit에 포함)
+import pydeck as pdk  
 
 st.title('방구 - 맞춤 방 구하기 서비스')
 
@@ -11,22 +11,13 @@ if "menu" not in st.session_state:
 if "section" not in st.session_state:
     st.session_state.section = "기본 정보"
 
-# selectbox/radio 변경 시 세션에 반영
 def _sync_menu():
     st.session_state.menu = st.session_state.menu_select
 
 def _sync_section():
     st.session_state.section = st.session_state.section_radio
 
-# ------- 지명→좌표 사전 & 지도 함수 -------
-PLACES = {
-    "서울시청": (37.5662952, 126.9779451),
-    "강남역": (37.497940, 127.027621),
-    "광화문": (37.575986, 126.976900),
-    "홍대입구역": (37.557192, 126.925381),
-    "잠실역": (37.513305, 127.100220),
-}
-
+# ------- 지도 함수 -------
 def show_radii_map(lat, lon, selected_km=None, custom_m=None):
     """중심 좌표 기준으로 1/3/5km 또는 커스텀(m) 원을 pydeck으로 표시"""
     base = [
@@ -147,7 +138,6 @@ if st.session_state.menu == '방구 소개':
     st.write('방구에 대한 소개 - 방구는 무엇인가? 우리의 강점')
 
 elif st.session_state.menu == '방 찾기':
-    # 사이드바: 섹션 선택 & 완료 버튼
     sidebar_nav()
 
     # --- 메인: 섹션별 UI ---
@@ -160,25 +150,48 @@ elif st.session_state.menu == '방 찾기':
             st.caption(f'입력하신 회사 주소: {work_input or "-"}')
 
             st.markdown("##### 지도와 반경")
-            place = st.selectbox("지명 선택", list(PLACES.keys()), index=0)
-            lat, lon = PLACES[place]
-            st.caption(f"좌표: 위도 {lat:.5f}, 경도 {lon:.5f}")
 
-            # 반경 선택
+            col_lat, col_lon = st.columns(2)
+            with col_lat:
+                lat_str = st.text_input("위도(lat) 입력 (예: 37.5665)", key="lat_input", placeholder="37.5665")
+            with col_lon:
+                lon_str = st.text_input("경도(lon) 입력 (예: 126.9780)", key="lon_input", placeholder="126.9780")
+
+            lat = lon = None
+            if lat_str and lon_str:
+                try:
+                    lat = float(lat_str)
+                    lon = float(lon_str)
+                except ValueError:
+                    st.error("위도/경도는 숫자로 입력해 주세요. 예: 37.5665 / 126.9780")
+
+            # 반경 선택 
             colA, colB = st.columns(2)
             with colA:
-                radius_km = st.radio("반경 선택", [1, 3, 5], index=0, horizontal=True)
+                # 라벨은 "1 km" 형태로 표시, 내부 값은 숫자 km로 사용
+                radius_label = st.radio("반경 선택", ["1 km", "3 km", "5 km"], index=0, horizontal=True)
+                radius_km = int(radius_label.split()[0])
             with colB:
                 custom_on = st.checkbox("커스텀 반경(m)", value=False)
             custom_m = st.slider("커스텀 반경(미터)", 200, 10000, 2000, 100) if custom_on else None
 
-            show_radii_map(lat, lon, selected_km=None if custom_on else radius_km, custom_m=custom_m)
+            if custom_on:
+                st.caption(f"커스텀 반경: {custom_m} m ({custom_m/1000:.2f} km)")
+
+
+            # 위도/경도가 유효할 때만 지도 표시
+            if (lat is not None) and (lon is not None):
+                show_radii_map(lat, lon, selected_km=None if custom_on else radius_km, custom_m=custom_m)
+            else:
+                st.info("위도와 경도를 입력하면 지도에 반영됩니다.")
 
         check_town = st.checkbox('원하는 동네가 있어요', key="check_town_main")
         if check_town:
             town_input = st.text_input('원하는 동네를 입력해주세요', key="town_input_main")
             st.caption(f'입력하신 동네: {town_input or "-"}')
 
+        st.divider()
+        
         st.subheader('연령대 선택')
         st.selectbox('연령대를 선택하세요',
                      ['선택안함', '20대', '30대', '40대', '50대 이상'],
