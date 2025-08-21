@@ -47,8 +47,8 @@ if selected_menu == '메인':
 elif selected_menu == '분석':
     st.subheader('분석 보고서')
     st.write('여기서 데이터를 선택하실 수 있습니다')
-    
     make_anal_tab()
+    
 else:
     st.subheader('설정 변경')
     st.write('앱 설정을 수정하실 수 있습니다')
